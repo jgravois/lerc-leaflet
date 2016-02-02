@@ -1,1 +1,3 @@
-this sample demonstrates the display of LERC tiles in a Leaflet app.
+> [live demo](http://jgravois.github.io/lerc-leaflet/)
+
+decode LERC tiles and display them in a Leaflet app.
