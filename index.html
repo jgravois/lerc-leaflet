@@ -16,6 +16,10 @@
 
     <script src="//rawgit.com/Esri/lerc/master/js/LercCodec.js"></script>
 
+    <!-- slider library-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.js"></script>
+
     <style>
       body {
         margin:0;
@@ -33,9 +37,14 @@
         position: absolute;
         top: 10px;
         right: 10px;
+        min-width: 200px;
         z-index: 10;
         padding: 1em;
         background: white;
+      }
+
+      .noUi-connect {
+        background: #CCC;
       }
     </style>
   </head>
@@ -43,11 +52,14 @@
 
   <div id="map"></div>
   <div id="info-pane" class="leaflet-bar">
-    <label>
-    pixel range (m)
+    <div id="slider"></div>
+    <br>
+    <label id="min">
+    0 meters
+    </label><br>
+    <label id="max">
+    4000 meters
     </label>
-    <input id="pixelRangeMin" type="text" value="0" onchange="lerc.redraw()">
-    <input id="pixelRangeMax" type="text" value="8000" onchange="lerc.redraw()">
 
     <hr>
 
@@ -74,11 +86,31 @@
       attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>'
     });
 
+    // create a UI slider for the end user to toggle the pixel range to display
+    var slider = document.getElementById('slider');
+    noUiSlider.create(slider, {
+      start: [0, 4000],
+      step: 500,
+      connect: true,
+      range: {
+        'min': 0,
+        'max': 8000
+      }
+    });
+
+    // When the slider value changes, update the input and span
+    slider.noUiSlider.on('set', function( values, handle ) {
+      document.getElementById('min').innerHTML = parseInt(values[0], 10) + ' meters';
+      document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
+      lerc.redraw();
+    });
+
     var drawData = function(lercblob, ctx) {
       var width = lercblob.width -1;
       var height = lercblob.height -1;
-      var min = document.getElementById('pixelRangeMin').value;
-      var max = document.getElementById('pixelRangeMax').value;
+      // console.log(slider.noUiSlider.get())
+      var min = slider.noUiSlider.get()[0]; // document.getElementById('pixelRangeMin').value;
+      var max = slider.noUiSlider.get()[1]; // document.getElementById('pixelRangeMax').value;
       var pixels = lercblob.pixelData;
       var mask = lercblob.maskData;
 
@@ -137,8 +169,8 @@
         var pointInTile = layerPoint.subtract(tilePoint.multiplyBy(256));
 
         // extract the pixel data from the canvas
-        document.getElementById('pixel-value').innerHTML = "Elevation: " +
-                 block.pixelData[pointInTile.y * block.width + pointInTile.x] + " m";
+        document.getElementById('pixel-value').innerHTML = "current elevation: " +
+                 block.pixelData[pointInTile.y * block.width + pointInTile.x] + " meters";
       } else {
         document.getElementById('pixel-value').innerHTML = "Elevation: undefined";
       }

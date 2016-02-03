@@ -10,6 +10,10 @@ unrelatedly, *Lurch* is arguably a member of the [Addams family](https://en.wiki
 
 ![lurch](https://upload.wikimedia.org/wikipedia/commons/1/16/Fester_lurch_1966.JPG)
 
+### Credits
+
+slider courtesy of [refreshless](http://refreshless.com/nouislider/)
+
 ### Contributing
 
 Esri welcomes contributions from anyone and everyone. Please see our [guidelines for contributing](https://github.com/Esri/contributing/blob/master/README.md).
