@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
   <html>
   <head>
     <meta charset=utf-8 />
@@ -67,7 +67,27 @@
   </div>
 
   <script>
-    var url;
+
+    // create a UI slider for the end user to toggle the pixel range to display
+    var slider = document.getElementById('slider');
+    noUiSlider.create(slider, {
+      start: [0, 4000],
+      step: 100,
+      connect: true,
+      range: {
+        'min': 0,
+        'max': 8000
+      }
+    });
+
+    // When the slider value changes, update the input and span
+    slider.noUiSlider.on('set', function (values, handle) {
+      document.getElementById('min').innerHTML = parseInt(values[0], 10) + ' meters';
+      document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
+      // redraw the tiles without resetting
+      for (t in lerc._tiles)
+        lerc._redrawTile(lerc._tiles[t]);
+    });
 
     var southWest = L.latLng(-90, -179),
     northEast = L.latLng(90, 179),
@@ -79,79 +99,56 @@
       maxBounds: worldBounds
     }).setView([30, 45], 3);
 
-    var searchControl = L.esri.Geocoding.Controls.geosearch().addTo(map);
-
     var lerc = L.tileLayer.canvas({
       noWrap: true,
       attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>'
     });
 
-    // create a UI slider for the end user to toggle the pixel range to display
-    var slider = document.getElementById('slider');
-    noUiSlider.create(slider, {
-      start: [0, 4000],
-      step: 500,
-      connect: true,
-      range: {
-        'min': 0,
-        'max': 8000
-      }
-    });
-
-    // When the slider value changes, update the input and span
-    slider.noUiSlider.on('set', function( values, handle ) {
-      document.getElementById('min').innerHTML = parseInt(values[0], 10) + ' meters';
-      document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
-      lerc.redraw();
-    });
-
-    var drawData = function(lercblob, ctx) {
-      var width = lercblob.width -1;
-      var height = lercblob.height -1;
-      // console.log(slider.noUiSlider.get())
-      var min = slider.noUiSlider.get()[0]; // document.getElementById('pixelRangeMin').value;
-      var max = slider.noUiSlider.get()[1]; // document.getElementById('pixelRangeMax').value;
-      var pixels = lercblob.pixelData;
-      var mask = lercblob.maskData;
-
-      var imageData = ctx.createImageData(width, height);
-      var data = imageData.data;
-      var f = 256 / (max - min);
-      var pv = 0;
-      for (var i = 0; i < width * height; i++) {
-        // Skip the last pixel in each input line
-        var j = i + Math.floor(i / width);
-        pv = (pixels[j] - min) * f;
-        data[i * 4] = pv;
-        data[i * 4 + 1] = pv;
-        data[i * 4 + 2] = pv;
-        // Mask only gets returned when missing data exists
-        data[i * 4 + 3] = (mask && !mask[j]) ? 0 :255;
-      }
-      ctx.putImageData(imageData, 0, 0);
-    }
-
     lerc.drawTile = function(canvas, tilePoint, zoom) {
-      var ctx = canvas.getContext('2d');
 
-      var tile = lerc._tiles[tilePoint.x + ':' + tilePoint.y];
-      var lerco = LERC();
+      drawData = function (lercblob, ctx) {
+        var width = lercblob.width - 1;
+        var height = lercblob.height - 1;
+        var min = slider.noUiSlider.get()[0];
+        var max = slider.noUiSlider.get()[1];
+        var pixels = lercblob.pixelData;
+        var mask = lercblob.maskData;
+
+        var imageData = ctx.createImageData(width, height);
+        var data = imageData.data;
+        var f = 256 / (max - min);
+        var pv = 0;
+        for (var i = 0; i < width * height; i++) {
+          // Skip the last pixel in each input line
+          var j = i + Math.floor(i / width);
+          pv = (pixels[j] - min) * f;
+          data[i * 4] = pv;
+          data[i * 4 + 1] = pv;
+          data[i * 4 + 2] = pv;
+          // Mask only gets returned when missing data exists
+          data[i * 4 + 3] = (mask && !mask[j]) ? 0 : 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      var tileIndex = tilePoint.x + ':' + tilePoint.y;
+      var tile = this._tiles[tileIndex];
       if (tile.decodedPixels) {
-        // This would save time, but it doesn't seem to ever happen
-        drawData(tile.decodedPixels, ctx);
-      } else {
-        var xhr = new XMLHttpRequest();
-        xhr.responseType = "arraybuffer";
-        var url = '//elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/' +
-        zoom + '/' + tilePoint.y + '/' + tilePoint.x;
-        xhr.open("Get", url, true);
-        xhr.send();
-        xhr.onreadystatechange = function () {
-          if (xhr.readyState == 4 && xhr.status == 200) {
-            var decodedPixelBlock = lerco.decode(xhr.response, { returnMask: true });
-            tile.decodedPixels = decodedPixelBlock;
-            drawData(decodedPixelBlock, ctx);
-          }
+        drawData(tile.decodedPixels, canvas.getContext('2d'));
+        return;
+      }
+
+      var xhr = new XMLHttpRequest();
+      xhr.responseType = "arraybuffer";
+      var url = 'http://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/' +
+	zoom + '/' + tilePoint.y + '/' + tilePoint.x;
+
+      xhr.open("Get", url, true);
+      xhr.send();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          tile.decodedPixels = LERC().decode(xhr.response, { returnMask: true });
+          drawData(tile.decodedPixels, canvas.getContext('2d'));
         }
       }
     }
@@ -160,15 +157,12 @@
       // the x/y of the tile url
       var layerPoint = map.project(e.latlng).floor();
       var tilePoint = layerPoint.divideBy(256).floor();
-
-      // the actual <canvas> object
+      // the tile data block
       var block = lerc._tiles[tilePoint.x + ':' + tilePoint.y].decodedPixels;
 
-      // if we have a tile
+      // Read the data value from the block if it exists
       if (block) {
         var pointInTile = layerPoint.subtract(tilePoint.multiplyBy(256));
-
-        // extract the pixel data from the canvas
         document.getElementById('pixel-value').innerHTML = "current elevation: " +
                  block.pixelData[pointInTile.y * block.width + pointInTile.x] + " meters";
       } else {
@@ -176,7 +170,11 @@
       }
     })
 
+//    lerc.options.reuseTiles = true;
+
+    L.esri.Geocoding.Controls.geosearch().addTo(map);
     lerc.addTo(map);
+
   </script>
   </body>
   </html>
