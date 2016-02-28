@@ -167,7 +167,7 @@
       if (block) {
         var pointInTile = layerPoint.subtract(tilePoint.multiplyBy(256));
         document.getElementById('pixel-value').innerHTML = "current elevation: " +
-                 block.pixelData[pointInTile.y * block.width + pointInTile.x] + " meters";
+                 Math.round(block.pixelData[pointInTile.y * block.width + pointInTile.x]) + " meters";
       } else {
         document.getElementById('pixel-value').innerHTML = "Elevation: undefined";
       }
