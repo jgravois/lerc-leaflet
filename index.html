@@ -14,7 +14,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/leaflet.esri.geocoder/1.0.2/esri-leaflet-geocoder.css" />
     <script src="https://cdn.jsdelivr.net/leaflet.esri.geocoder/1.0.2/esri-leaflet-geocoder.js"></script>
 
-    <script src="https://rawgit.com/Esri/lerc/master/OtherLanguages/js/LercDecode.js"></script>
+    <!--script src="https://rawgit.com/Esri/lerc/master/OtherLanguages/js/LercDecode.js"></script-->
+
+    <script src="https://rawgit.com/Esri/lerc/e60a69fce491ae6948f4e6e6c8a559a5d3684fbd/js/LercCodec.js"></script>
 
     <!-- slider library-->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.css" />
@@ -104,6 +106,7 @@
       attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>'
     });
 
+    // to do: update to use Lerc v1 decoder
     lerc.codec = LERC();
 
     lerc.drawTile = function (canvas, tilePoint, zoom) {
