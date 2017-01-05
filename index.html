@@ -6,17 +6,16 @@
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
     <!-- Load Leaflet from CDN-->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/leaflet/0.7.7/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/leaflet/0.7.7/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet-src.js"></script>
 
-    <!-- load esri leaflet and its geocoder for place search -->
-    <script src="https://cdn.jsdelivr.net/leaflet.esri/1.0.4/esri-leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/leaflet.esri.geocoder/1.0.2/esri-leaflet-geocoder.css" />
-    <script src="https://cdn.jsdelivr.net/leaflet.esri.geocoder/1.0.2/esri-leaflet-geocoder.js"></script>
+    <!-- load esri leaflet and its geocoder for address/place search -->
+    <script src="https://unpkg.com/esri-leaflet@2.0.6"></script>
+    <link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@2.2.2/dist/esri-leaflet-geocoder.css">
+    <script src="https://unpkg.com/esri-leaflet-geocoder@2.2.2"></script>
 
-    <!--script src="https://rawgit.com/Esri/lerc/master/OtherLanguages/js/LercDecode.js"></script-->
-
-    <script src="https://rawgit.com/Esri/lerc/e60a69fce491ae6948f4e6e6c8a559a5d3684fbd/js/LercCodec.js"></script>
+    <!--load the lerc decoder -->
+    <script src="https://cdn.rawgit.com/Esri/lerc/v1.0/OtherLanguages/js/LercDecode.js"></script>
 
     <!-- slider library-->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.css" />
@@ -40,7 +39,7 @@
         top: 10px;
         right: 10px;
         min-width: 200px;
-        z-index: 10;
+        z-index: 500;
         padding: 1em;
         background: white;
       }
@@ -76,10 +75,7 @@
       start: [0, 4000],
       step: 100,
       connect: true,
-      range: {
-        'min': 0,
-        'max': 8000
-      }
+      range: { 'min': 0, 'max': 8000  }
     });
 
     // When the slider value changes, update the input and span
@@ -101,85 +97,81 @@
       maxBounds: worldBounds
     }).setView([30, 45], 3);
 
-    var lerc = L.tileLayer.canvas({
+    var LercLayer = L.GridLayer.extend({
+      createTile: function (coords, done) {
+        var error;
+        var tile = L.DomUtil.create('canvas', 'leaflet-tile');
+        tile.width = 256;
+        tile.height = 256;
+
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = "arraybuffer";
+        var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/' + 'Terrain3D/ImageServer/tile/' + coords.z + '/' + coords.y + '/' + coords.x;
+
+        xhr.open("Get", url, true);
+        xhr.send();
+        xhr.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+            tile.decodedPixels = Lerc.decode(xhr.response);
+            // LercLayer.draw(tile.decodedPixels);
+            var width = tile.decodedPixels.width - 1;
+            var height = tile.decodedPixels.height - 1;
+            var min = slider.noUiSlider.get()[0];
+            var max = slider.noUiSlider.get()[1];
+            var pixels = tile.decodedPixels.pixels[0];
+            var mask = tile.decodedPixels.maskData;
+
+            var ctx = tile.getContext('2d');
+            var imageData = ctx.createImageData(width, height);
+            var data = imageData.data;
+            var f = 256 / (max - min);
+            var pv = 0;
+            for (var i = 0; i < width * height; i++) {
+              // Skip the last pixel in each input line
+              var j = i + Math.floor(i / width);
+              pv = (pixels[j] - min) * f;
+              data[i * 4] = pv;
+              data[i * 4 + 1] = pv;
+              data[i * 4 + 2] = pv;
+              // Mask only gets returned when missing data exists
+              data[i * 4 + 3] = (mask && !mask[j]) ? 0 : 255;
+            }
+            ctx.putImageData(imageData, 0, 0);
+            //
+            done(error, tile);
+          }
+        }
+        return tile;
+      }
+    });
+
+    var elevation = new LercLayer({
       noWrap: true,
       attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>'
     });
-
-    // to do: update to use Lerc v1 decoder
-    lerc.codec = LERC();
-
-    lerc.drawTile = function (canvas, tilePoint, zoom) {
-
-      drawData = function (lercblob, ctx) {
-        var width = lercblob.width - 1;
-        var height = lercblob.height - 1;
-        var min = slider.noUiSlider.get()[0];
-        var max = slider.noUiSlider.get()[1];
-        var pixels = lercblob.pixelData;
-        var mask = lercblob.maskData;
-
-        var imageData = ctx.createImageData(width, height);
-        var data = imageData.data;
-        var f = 256 / (max - min);
-        var pv = 0;
-        for (var i = 0; i < width * height; i++) {
-          // Skip the last pixel in each input line
-          var j = i + Math.floor(i / width);
-          pv = (pixels[j] - min) * f;
-          data[i * 4] = pv;
-          data[i * 4 + 1] = pv;
-          data[i * 4 + 2] = pv;
-          // Mask only gets returned when missing data exists
-          data[i * 4 + 3] = (mask && !mask[j]) ? 0 : 255;
-        }
-        ctx.putImageData(imageData, 0, 0);
-      }
-
-      var tileIndex = tilePoint.x + ':' + tilePoint.y;
-      var tile = this._tiles[tileIndex];
-      if (tile.decodedPixels) {
-        drawData(tile.decodedPixels, canvas.getContext('2d'));
-        return;
-      }
-
-      var xhr = new XMLHttpRequest();
-      xhr.responseType = "arraybuffer";
-      xhr.codec = this.codec
-      var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/' +
-	zoom + '/' + tilePoint.y + '/' + tilePoint.x;
-
-      xhr.open("Get", url, true);
-      xhr.send();
-      xhr.onreadystatechange = function () {
-        if (this.readyState == 4 && this.status == 200) {
-          tile.decodedPixels = this.codec.decode(xhr.response, { returnMask: true });
-          drawData(tile.decodedPixels, canvas.getContext('2d'));
-        }
-      }
-    };
 
     map.on('mousemove', function (e) {
       // the x/y of the tile url
       var layerPoint = map.project(e.latlng).floor();
       var tilePoint = layerPoint.divideBy(256).floor();
+      tilePoint.z = map.getZoom();
       // the tile data block
-      var block = lerc._tiles[tilePoint.x + ':' + tilePoint.y].decodedPixels;
+      var block = elevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
 
       // Read the data value from the block if it exists
       if (block) {
         var pointInTile = layerPoint.subtract(tilePoint.multiplyBy(256));
         document.getElementById('pixel-value').innerHTML = "current elevation: " +
-                 Math.round(block.pixelData[pointInTile.y * block.width + pointInTile.x]) + " meters";
+                 Math.round(block.pixels[0][pointInTile.y * block.width + pointInTile.x]) + " meters";
       } else {
         document.getElementById('pixel-value').innerHTML = "Elevation: undefined";
       }
-    })
+    });
 
-//    lerc.options.reuseTiles = true;
+    //  lercLayer.options.reuseTiles = true;
 
-    L.esri.Geocoding.Controls.geosearch().addTo(map);
-    lerc.addTo(map);
+    L.esri.Geocoding.geosearch().addTo(map);
+    elevation.addTo(map);
 
   </script>
   </body>
