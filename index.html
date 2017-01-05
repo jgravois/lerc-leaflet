@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.js"></script>
 
-    <!-- load our custom leaflet plugin -->
+    <!-- load our plugin -->
     <script src="./LercLayer.js"></script>
 
     <style>
@@ -86,8 +86,8 @@
       document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
 
       // redraw the tiles without refetching the from the server
-      for (var key in elevation._tiles) {
-        elevation.draw(elevation._tiles[key].el);
+      for (var key in lercElevation._tiles) {
+        lercElevation.draw(lercElevation._tiles[key].el);
       }
     });
 
@@ -95,25 +95,26 @@
     northEast = L.latLng(90, 179),
     worldBounds = L.latLngBounds(southWest, northEast);
 
+    // set up the map
     var map = L.map('map', {
       noWrap: true,
       minZoom: 3,
       maxBounds: worldBounds
     }).setView([30, 45], 3);
 
-    var elevation = new LercLayer({
+    var lercElevation = new LercLayer({
       noWrap: true,
-      attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>',
-      tileSize: 257
+      attribution: 'USGS, <a href="https://github.com/Esri/lerc">LERC</a>',
+      tileSize: 256
     });
 
     map.on('mousemove', function (e) {
-      // the x/y of the tile url
+      // the gather the x/y and z of the tile url
       var layerPoint = map.project(e.latlng).floor();
       var tilePoint = layerPoint.divideBy(256).floor();
       tilePoint.z = map.getZoom();
       // the tile data block
-      var block = elevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
+      var block = lercElevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
 
       // Read the data value from the block if it exists
       if (block) {
@@ -126,7 +127,8 @@
     });
 
     L.esri.Geocoding.geosearch().addTo(map);
-    elevation.addTo(map);
+    lercElevation.addTo(map);
+
   </script>
   </body>
   </html>

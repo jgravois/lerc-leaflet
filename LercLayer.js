@@ -14,7 +14,7 @@ var LercLayer = L.GridLayer.extend({
     xhr.onreadystatechange = function () {
       if (this.readyState == 4 && this.status == 200) {
         tile.decodedPixels = Lerc.decode(xhr.response);
-        elevation.draw(tile);
+        lercElevation.draw(tile);
         done(error, tile);
       }
     }
@@ -22,8 +22,8 @@ var LercLayer = L.GridLayer.extend({
   },
 
   draw: function (tile) {
-    var width = tile.decodedPixels.width ;
-    var height = tile.decodedPixels.height;
+    var width = tile.decodedPixels.width - 1;
+    var height = tile.decodedPixels.height - 1;
     var min = slider.noUiSlider.get()[0];
     var max = slider.noUiSlider.get()[1];
     var pixels = tile.decodedPixels.pixels[0];
@@ -36,8 +36,8 @@ var LercLayer = L.GridLayer.extend({
     var pv = 0;
     for (var i = 0; i < width * height; i++) {
       // Skip the last pixel in each input line
-      // var j = i + Math.floor(i / width);
-      pv = (pixels[i] - min) * f;
+      var j = i + Math.floor(i / width);
+      pv = (pixels[j] - min) * f;
       data[i * 4] = pv;
       data[i * 4 + 1] = pv;
       data[i * 4 + 2] = pv;
