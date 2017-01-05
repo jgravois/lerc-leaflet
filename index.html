@@ -21,6 +21,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/8.2.1/nouislider.min.js"></script>
 
+    <!-- load our plugin -->
+    <script src="./LercLayer.js"></script>
+
     <style>
       body {
         margin:0;
@@ -68,7 +71,6 @@
   </div>
 
   <script>
-
     // create a UI slider for the end user to toggle the pixel range to display
     var slider = document.getElementById('slider');
     noUiSlider.create(slider, {
@@ -82,81 +84,37 @@
     slider.noUiSlider.on('set', function (values, handle) {
       document.getElementById('min').innerHTML = parseInt(values[0], 10) + ' meters';
       document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
-      // redraw the tiles without resetting
-      for (t in lerc._tiles)
-        lerc._redrawTile(lerc._tiles[t]);
+
+      // redraw the tiles without refetching the from the server
+      for (var key in lercElevation._tiles) {
+        lercElevation.draw(lercElevation._tiles[key].el);
+      }
     });
 
     var southWest = L.latLng(-90, -179),
     northEast = L.latLng(90, 179),
     worldBounds = L.latLngBounds(southWest, northEast);
 
+    // set up the map
     var map = L.map('map', {
       noWrap: true,
       minZoom: 3,
       maxBounds: worldBounds
     }).setView([30, 45], 3);
 
-    var LercLayer = L.GridLayer.extend({
-      createTile: function (coords, done) {
-        var error;
-        var tile = L.DomUtil.create('canvas', 'leaflet-tile');
-        tile.width = 256;
-        tile.height = 256;
-
-        var xhr = new XMLHttpRequest();
-        xhr.responseType = "arraybuffer";
-        var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/' + 'Terrain3D/ImageServer/tile/' + coords.z + '/' + coords.y + '/' + coords.x;
-
-        xhr.open("Get", url, true);
-        xhr.send();
-        xhr.onreadystatechange = function () {
-          if (this.readyState == 4 && this.status == 200) {
-            tile.decodedPixels = Lerc.decode(xhr.response);
-            // LercLayer.draw(tile.decodedPixels);
-            var width = tile.decodedPixels.width - 1;
-            var height = tile.decodedPixels.height - 1;
-            var min = slider.noUiSlider.get()[0];
-            var max = slider.noUiSlider.get()[1];
-            var pixels = tile.decodedPixels.pixels[0];
-            var mask = tile.decodedPixels.maskData;
-
-            var ctx = tile.getContext('2d');
-            var imageData = ctx.createImageData(width, height);
-            var data = imageData.data;
-            var f = 256 / (max - min);
-            var pv = 0;
-            for (var i = 0; i < width * height; i++) {
-              // Skip the last pixel in each input line
-              var j = i + Math.floor(i / width);
-              pv = (pixels[j] - min) * f;
-              data[i * 4] = pv;
-              data[i * 4 + 1] = pv;
-              data[i * 4 + 2] = pv;
-              // Mask only gets returned when missing data exists
-              data[i * 4 + 3] = (mask && !mask[j]) ? 0 : 255;
-            }
-            ctx.putImageData(imageData, 0, 0);
-            //
-            done(error, tile);
-          }
-        }
-        return tile;
-      }
-    });
-
-    var elevation = new LercLayer({
+    var lercElevation = new LercLayer({
       noWrap: true,
-      attribution: 'USGS, Esri <a href="https://github.com/Esri/lerc">LERC</a>'
+      attribution: 'USGS, <a href="https://github.com/Esri/lerc">LERC</a>',
+      tileSize: 256
     });
 
     map.on('mousemove', function (e) {
-      // the x/y of the tile url
+      // the gather the x/y and z of the tile url
       var layerPoint = map.project(e.latlng).floor();
       var tilePoint = layerPoint.divideBy(256).floor();
       tilePoint.z = map.getZoom();
       // the tile data block
-      var block = elevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
+      var block = lercElevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
 
       // Read the data value from the block if it exists
       if (block) {
@@ -168,10 +126,8 @@
       }
     });
 
-    //  lercLayer.options.reuseTiles = true;
-
     L.esri.Geocoding.geosearch().addTo(map);
-    elevation.addTo(map);
+    lercElevation.addTo(map);
 
   </script>
   </body>
