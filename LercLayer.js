@@ -41,8 +41,8 @@ var LercLayer = L.GridLayer.extend({
       data[i * 4] = pv;
       data[i * 4 + 1] = pv;
       data[i * 4 + 2] = pv;
-      // no need to handle masks anymore
-      data[i * 4 + 3] = 255;
+      // Mask only gets returned when missing data exists
+      data[i * 4 + 3] = (mask && !mask[j]) ? 0 : 255;
     }
     ctx.putImageData(imageData, 0, 0);
   }
