@@ -11,10 +11,14 @@ var LercLayer = L.GridLayer.extend({
 
     xhr.open("Get", url, true);
     xhr.send();
+
+    // i dont know much about closures
+    var that = this;
+
     xhr.onreadystatechange = function () {
       if (this.readyState == 4 && this.status == 200) {
         tile.decodedPixels = Lerc.decode(xhr.response);
-        lercElevation.draw(tile);
+        that.draw(tile);
         done(error, tile);
       }
     }
