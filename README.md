@@ -19,7 +19,7 @@ slider courtesy of [refreshless](http://refreshless.com/nouislider/)
 Esri welcomes contributions from anyone and everyone. Please see our [guidelines for contributing](https://github.com/Esri/contributing/blob/master/README.md).
 
 ### Licensing
-Copyright 2015 Esri
+Copyright 2017 Esri
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,3 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 A copy of the license is available in the repository's [LICENSE](./LICENSE) file.
-
-[](Esri Tags: LERC Leaflet)
-[](Esri Language: JavaScript)
