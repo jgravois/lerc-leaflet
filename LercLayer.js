@@ -12,16 +12,16 @@ var LercLayer = L.GridLayer.extend({
     xhr.open("Get", url, true);
     xhr.send();
 
-    // i dont know much about closures
-    var that = this;
+    // var that = this;
 
-    xhr.onreadystatechange = function () {
-      if (this.readyState == 4 && this.status == 200) {
+    xhr.onreadystatechange = function (evt) {
+      if (evt.target.readyState == 4 && evt.target.status == 200) {
         tile.decodedPixels = Lerc.decode(xhr.response);
-        that.draw(tile);
+        this.draw(tile);
         done(error, tile);
       }
-    }
+    }.bind(this);
+    
     return tile;
   },
 
